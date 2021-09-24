@@ -438,7 +438,7 @@ contract("RealityCardsTests", (accounts) => {
 
         });
 
-        it("User gains ownership before last rent calculation", async () => {
+        it("User gains ownership before last rent calculation (has a rental rate)", async () => {
             // setup, Alice owns outcome 0 and is underbidder on outcome 1
             await rc.deposit(5, alice)
             await rc.deposit(40, bob)
@@ -453,6 +453,38 @@ contract("RealityCardsTests", (accounts) => {
             await treasury.collectRentUser(alice, timestamp)
             // alice has paid rent on outcome 0, but ownership of outcome 1
             // .. hasn't been given to her yet, so she hasn't foreclosed
+
+            await time.increase(time.duration.hours(40))
+            await markets[0].exit(1, { from: bob })
+            // bob should be able to exit, ownership should skip Alice as she can't afford it
+
+            assert.equal(await markets[0].ownerOf(1), markets[0].address)
+        });
+
+        it("test multiple user rent collections at same timestamp", async () => {
+            // create a market that'll expire soon
+            markets.push(await rc.createMarket({ closeTime: time.duration.weeks(1), resolveTime: time.duration.weeks(1) }));
+            await rc.deposit(1, alice);
+            await rc.newRental({ market: markets[1] });
+            await rc.newRental({ market: markets[1], outcome: 1 });
+            await time.increase(time.duration.weeks(2));
+            //await markets[1].collectRentAllCards();
+            await markets[1].lockMarket();
+            // await rc.withdrawDeposit(1000, alice);
+        });
+
+        it("User gains ownership before last rent calculation (zero rental rate)", async () => {
+            // setup, Alice owns outcome 0 and is underbidder on outcome 1
+            await rc.deposit(5, alice)
+            await rc.deposit(40, bob)
+            await rc.newRental({ from: alice, outcome: 1, price: 10 })
+            await rc.newRental({ from: bob, outcome: 1, price: 20 })
+
+            await time.increase(time.duration.days(3))
+            // bob has now foreclosed
+
+            let timestamp = await time.latest()
+            await treasury.collectRentUser(alice, timestamp)
 
             await time.increase(time.duration.hours(40))
             await markets[0].exit(1, { from: bob })

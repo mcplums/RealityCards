@@ -43,7 +43,8 @@ var kleros = '0xd47f72a2d1d0E91b0Ec5e5f5d02B2dc26d00A14D'; //double check this
 const PoSDai = '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063';
 const PoSUSDC = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
 const childChainManager = '0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa'; //double check this
-const MintableERC721PredicateProxy = '0x932532aA4c0174b8453839A6E44eE09Cc615F2b7'
+const MintableERC721PredicateProxy =
+  '0x932532aA4c0174b8453839A6E44eE09Cc615F2b7';
 // Testnet addresses
 var ambAddressSokol = '0xFe446bEF1DbF7AFE24E81e05BC8B271C1BA9a560';
 var ambAddressKovan = '0xFe446bEF1DbF7AFE24E81e05BC8B271C1BA9a560';
@@ -89,7 +90,9 @@ module.exports = async (deployer, network, accounts) => {
     nftHubL2 = await NftHubL2.deployed();
     // tell treasury about factory & ARB, tell factory about nft hub and reference
     await treasury.setFactoryAddress(factory.address, { gas: 200000 });
-    await factory.setReferenceContractAddress(reference.address, { gas: 100000 });
+    await factory.setReferenceContractAddress(reference.address, {
+      gas: 100000,
+    });
     await factory.setNftHubAddress(nftHubL2.address, { gas: 100000 });
     await factory.setRealitioAddress(realitio.address, { gas: 100000 });
     await treasury.setOrderbookAddress(orderbook.address, { gas: 200000 });
@@ -116,7 +119,7 @@ module.exports = async (deployer, network, accounts) => {
     nftHubL1 = await NftHubL1.deployed();
 
     console.log('Completed stage 2');
-    console.log("Layer 1 NFT hub ", nftHubL1.address);
+    console.log('Layer 1 NFT hub ', nftHubL1.address);
   } else if (network === 'graphTesting') {
     /**************************************
      *                                     *
@@ -194,8 +197,16 @@ module.exports = async (deployer, network, accounts) => {
       closeMarket,
       depositDai,
       rent,
-      exit
+      exit,
+      sponsor
     );
+
+    //grant PREDICATE_ROLE to account 0 and minting test toket to L1Hub
+    await nftHubL1.grantRole(
+      '0x12ff340d0cd9c652c747ca35727e68c547d0f0bfa7758d2e77f75acef481b4f2',
+      accounts[0]
+    );
+    await nftHubL1.mint(accounts[0], 1);
 
     /**************************************
      *                                     *
@@ -219,7 +230,7 @@ async function createMarket(options) {
   var defaults = {
     mode: 0, // mode, 0 = classic, 1 = winner takes all, 2 = hot potato
     ipfs: 0x0, // ipfs hash
-    slug: "slug", // slug
+    slug: 'slug', // slug
     openTime: 0, // seconds delay before market opens
     closeTime: 31536000, // seconds delay from now before market closes - default 31536000 = 1 year
     resolveTime: 0, // seconds delay from close before market resolves
@@ -240,7 +251,16 @@ async function createMarket(options) {
     tokenURIs.push('x');
   }
   // double the length of the array for the copies to be minted
-  tokenURIs = tokenURIs.concat(tokenURIs.concat(tokenURIs.concat(tokenURIs.concat(tokenURIs))))
+  tokenURIs = tokenURIs.concat(
+    tokenURIs.concat(tokenURIs.concat(tokenURIs.concat(tokenURIs)))
+  );
+
+  // approve sponsorship amount
+  var sponsorshipAmount = options.sponsorship;
+  if (options.sponsorship > 0) {
+    sponsorshipAmount = web3.utils.toWei(sponsorshipAmount.toString(), 'ether');
+    await erc20.approve(treasury.address, sponsorshipAmount);
+  }
 
   await factory.createMarket(
     options.mode,
@@ -252,8 +272,9 @@ async function createMarket(options) {
     options.affiliateAddress,
     options.cardAffiliate,
     question,
-    options.sponsorship
+    sponsorshipAmount
   );
+
   var recentMarketAddress = await factory.getMostRecentMarket.call(0);
   marketAddress.push(recentMarketAddress);
   market.push(await RCMarket.at(await factory.getMostRecentMarket.call(0)));
@@ -291,22 +312,29 @@ async function rent(options) {
     startingPosition: ZERO_ADDRESS,
   };
   options = setDefaults(options, defaults);
-  let newPrice = web3.utils.toWei('1', 'ether');
+
+  // Set the default price to min hourly
+  let minHourlyPrice = '1';
+  let dailyPrice = Number(minHourlyPrice) * 24;
+  let newPrice = web3.utils.toWei(dailyPrice.toString(), 'ether');
+
+  // If no price is set, rent for 10% higher than the current price
+  if (!options.price) {
+    let card = await options.market.card(options.outcome);
+    const currentPrice = new BN(card.cardPrice);
+    const higherPrice = currentPriceBN.add(currentPrice.div(new BN('10')));
+    if (!higherPrice.isZero()) {
+      newPrice = higherPrice.toString();
+    }
+  }
+
+  // If price set, set it to daily
+  if (options.price) {
+    dailyPrice = Number(options.price) * 24;
+    newPrice = web3.utils.toWei(dailyPrice.toString(), 'ether');
+  }
 
   try {
-    if (options.price) {
-      newPrice = web3.utils.toWei(options.price.toString(), 'ether');
-    } else {
-      let card = await options.market.card(options.outcome);
-      const currentPrice = card.cardPrice;
-      const currentPriceBN = new BN(currentPrice);
-      newPrice = currentPriceBN.add(currentPriceBN.div(new BN('10')));
-      if (!newPrice.isZero()) {
-        newPrice = newPrice.toString();
-      } else {
-        newPrice = web3.utils.toWei('1', 'ether');
-      }
-    }
     await options.market.newRental(
       newPrice,
       options.timeLimit,
@@ -317,7 +345,8 @@ async function rent(options) {
   } catch (err) {
     console.log(
       err,
-      `on rent from account:${options.from}, market: ${options.market.address
+      `on rent from account:${options.from}, market: ${
+        options.market.address
       }, card: ${options.outcome}, price: ${web3.utils.fromWei(
         newPrice,
         'ether'
@@ -346,8 +375,10 @@ async function sponsor(options) {
   options = setDefaults(options, defaults);
 
   var amount = web3.utils.toWei(options.amount.toString(), 'ether');
-  await erc20.approve(treasury.address, amount, { from: options.from });
-  await options.market.sponsor(amount, {
+  await erc20.approve(treasury.address, amount, {
+    from: options.from,
+  });
+  await options.market.sponsor(options.from, amount, {
     from: options.from,
   });
 }

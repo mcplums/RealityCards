@@ -10,11 +10,12 @@ ARTIST=""
 ARTIST_LINK=""
 EVENT_NAME=""
 ORACLE_QUESTION=""
+DESCRIPTION=''
 SRC_NAME=""
 SLUG=""
 CATEGORY="Other"
 US_ALLOWED="true"
-IMAGE_FORMAT=".jpg"
+IMAGE_FORMAT=".png"
 NUMBER_OF_CARDS=""
 CARD0=""
 CARD1=""
@@ -30,10 +31,15 @@ CARD_AFFILIATE2=""
 CARD_AFFILIATE3=""
 CARD_AFFILIATE4=""
 CDN="https://cdn.realitycards.io/"
-IMAGES="images/"
-NFT="nftmetadata/"
+IMAGES="V1/"
+NFT="V1/"
 ZERO_ADDRESS="0x0000000000000000000000000000000000000000"
 ##################
+
+# remove quotation marks (replace with apostophies)
+DESCRIPTION=${DESCRIPTION//\"/\'}
+# remove newlines
+DESCRIPTION=${DESCRIPTION//$'\n'/}
 
 mkdir -p events/$SRC_NAME
 eventJSON='{\n  "name": "'$EVENT_NAME'",'
@@ -45,6 +51,7 @@ eventJSON=$eventJSON'\n  "artistLink": "'$ARTIST_LINK'",'
 fi
 eventJSON=$eventJSON'\n  "category": "'$CATEGORY'",'
 eventJSON=$eventJSON'\n  "US_allowed": "'$US_ALLOWED'",'
+eventJSON=$eventJSON'\n  "description": "'$DESCRIPTION'",'
 eventJSON=$eventJSON'\n  "cards": {'
 for ((i=0;i<$NUMBER_OF_CARDS;i++))
 do
@@ -132,8 +139,9 @@ if [ $i -lt "$(($NUMBER_OF_CARDS-1))" ]
 done
 ORACLE_QUESTION=$ORACLE_QUESTION${CATEGORY}'␟en_US'
 
-NOW=$(date)
 EPOCH=$(TZ=UTC date "+%s")
+START_DATE=$(TZ=UTC date --date "Jan 1, 1970 00:00:00 +0000 + ${START_TIME} seconds")
+END_DATE=$(TZ=UTC date --date "Jan 1, 1970 00:00:00 +0000 + ${END_TIME} seconds")
 if [ $END_TIME -lt $START_TIME ];then
     echo WARNING: ENDING BEFORE STARTING
 fi
@@ -142,14 +150,14 @@ if [ $START_TIME -lt $EPOCH ]; then
 else
     OFFSET=$((START_TIME - EPOCH))
     if [ $OFFSET -lt 120 ];then
-        echo STARTING IN $OFFSET SECONDS 
+        echo STARTING IN $OFFSET SECONDS on ${START_DATE} UTC
     else
         OFFSET=$(( OFFSET / 60 ))
         if [ $OFFSET -lt 120 ];then
-            echo STARTING IN $OFFSET MINUTES 
+            echo STARTING IN $OFFSET MINUTES on ${START_DATE} UTC
         else
             OFFSET=$(( OFFSET / 60 ))
-            echo STARTING IN $OFFSET HOURS 
+            echo STARTING IN $OFFSET HOURS on ${START_DATE} UTC
         fi
     fi
 fi
@@ -158,20 +166,21 @@ if [ $END_TIME -lt $EPOCH ]; then
 else
     OFFSET=$((END_TIME - EPOCH))
     if [ $OFFSET -lt 120 ];then
-        echo ENDING IN $OFFSET SECONDS 
+        echo ENDING IN $OFFSET SECONDS on ${END_DATE} UTC
     else
         OFFSET=$(( OFFSET / 60 ))
         if [ $OFFSET -lt 120 ];then
-            echo ENDING IN $OFFSET MINUTES 
+            echo ENDING IN $OFFSET MINUTES on ${END_DATE} UTC
         else
             OFFSET=$(( OFFSET / 60 ))
-            echo ENDING IN $OFFSET HOURS 
+            echo ENDING IN $OFFSET HOURS on ${END_DATE} UTC
         fi
     fi
 fi
 
 CONFIG='{\n  "start": "'${START_TIME}'",'
 CONFIG=$CONFIG'\n  "end": "'${END_TIME}'",'
+CONFIG=$CONFIG'\n  "slug": "'$SLUG'",'
 CONFIG=$CONFIG'\n  "oracle": "'${ORACLE_QUESTION}'",'
 CONFIG=$CONFIG'\n  "ipfs": "'${ipfs_hash}'",'
 CONFIG=$CONFIG'\n  "artist": "'${ARTIST}'",'

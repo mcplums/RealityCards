@@ -19,6 +19,7 @@ import "../interfaces/IRCNftHubL1.sol";
 /// @title Reality Cards NFT Hub- mainnet side
 /// @author Andrew Stanger & Daniel Chilvers
 contract RCNftHubL1 is
+    Ownable,
     ERC721URIStorage,
     AccessControl,
     NativeMetaTransaction,

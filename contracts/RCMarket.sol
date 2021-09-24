@@ -734,7 +734,7 @@ contract RCMarket is Initializable, NativeMetaTransaction, IRCMarket {
     ) public override autoUnlock autoLock {
         // if the market isn't open then don't do anything else, not reverting
         // .. will allow autoLock to process the accounting to lock the market
-        if (state == States.OPEN) {
+        if (state == States.OPEN && !accountingComplete) {
             require(_newPrice >= MIN_RENTAL_VALUE, "Price below min");
             require(_card < numberOfCards, "Card does not exist");
 

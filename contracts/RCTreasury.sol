@@ -838,8 +838,15 @@ contract RCTreasury is AccessControl, NativeMetaTransaction, IRCTreasury {
                 // if no rentals they'll foreclose after the heat death of the universe
                 return type(uint256).max;
             } else {
-                return
-                    _timeOfNewBid + ((user[_user].deposit * 1 days) / _newBid);
+                uint256 userForeclosureTime = _timeOfNewBid +
+                    ((user[_user].deposit * 1 days) / _newBid);
+                if (userForeclosureTime > user[_user].lastRentCalc) {
+                    return userForeclosureTime;
+                } else {
+                    // Unfortunatly we can't give ownership for the same
+                    // .. reasons as explained above, returning 0.
+                    return 0;
+                }
             }
         }
     }

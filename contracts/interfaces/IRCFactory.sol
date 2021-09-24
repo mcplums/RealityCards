@@ -47,6 +47,21 @@ interface IRCFactory {
             bool
         );
 
+    function getMarketInfo(
+        IRCMarket.Mode _mode,
+        uint256 _state,
+        uint256 _results,
+        uint256 _skipResults
+    )
+        external
+        view
+        returns (
+            address[] memory,
+            string[] memory,
+            string[] memory,
+            uint256[] memory
+        );
+
     function nfthub() external view returns (IRCNftHubL2);
 
     function ipfsHash(address) external view returns (string memory);

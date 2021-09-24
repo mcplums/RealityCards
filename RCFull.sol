@@ -17,11 +17,32 @@ interface IRCFactory {
         uint256 _sponsorship
     ) external returns (address);
 
-    function mintCopyOfNFT(address _user, uint256 _tokenId) external;
+    function mintCopyOfNFT(
+        address _user,
+        uint256 _cardId,
+        uint256 _tokenId,
+        bool _winner
+    ) external;
+
+    function updateTokenOutcome(
+        uint256 _cardId,
+        uint256 _tokenId,
+        bool _winner
+    ) external;
 
     // view functions
 
-    function nfthub() external view returns (address);
+    function getMarketSettings()
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            bool
+        );
+
+    function nfthub() external view returns (IRCNftHubL2);
 
     function ipfsHash(address) external view returns (string memory);
 
@@ -29,15 +50,13 @@ interface IRCFactory {
 
     function addressToSlug(address) external view returns (string memory);
 
-    function marketInfoResults() external view returns (uint256);
+    function treasury() external view returns (IRCTreasury);
 
-    function treasury() external view returns (address);
+    function orderbook() external view returns (IRCOrderbook);
 
-    function orderbook() external view returns (address);
+    function leaderboard() external view returns (IRCLeaderboard);
 
-    function leaderboard() external view returns (address);
-
-    function realitio() external view returns (address);
+    function realitio() external view returns (IRealitio);
 
     function getAllMarkets(IRCMarket.Mode _mode)
         external
@@ -97,15 +116,9 @@ interface IRCFactory {
     // only Governors
     function changeMarketApproval(address _market) external;
 
-    function addArtist(address _newArtist) external;
-
-    function removeArtist(address _oldArtist) external;
-
-    function addAffiliate(address _newAffiliate) external;
-
-    function removeAffiliate(address _oldAffiliate) external;
-
     // only Owner
+    function setLimitNFTsToWinners(bool _limitEnabled) external;
+
     function setMarketPausedDefaultState(bool _state) external;
 
     function setTimeout(uint32 _newTimeout) external;
@@ -130,8 +143,7 @@ interface IRCFactory {
     function updateTokenURI(
         address _market,
         uint256 _cardId,
-        string calldata _newTokenURI,
-        string calldata _newCopyTokenURI
+        string[] calldata _newTokenURIs
     ) external;
 
     function setPotDistribution(
@@ -156,8 +168,6 @@ interface IRCFactory {
         uint32 _newMaximumDuration
     ) external;
 
-    function setMarketInfoResults(uint256 _results) external;
-
     // only UberOwner
     function setReferenceContractAddress(address _newAddress) external;
 
@@ -166,6 +176,8 @@ interface IRCFactory {
     function setLeaderboardAddress(IRCLeaderboard _newAddress) external;
 
     function setNftHubAddress(IRCNftHubL2 _newAddress) external;
+
+    function setTreasuryAddress(IRCTreasury _newTreasury) external;
 }
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -173,11 +185,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 interface IRCTreasury {
     function setTokenAddress(address _newToken) external;
 
-    function grantRole(string memory role, address account) external;
+    function grantRoleString(string memory role, address account) external;
 
     function grantRole(bytes32, address) external;
 
-    function revokeRole(string memory role, address account) external;
+    function revokeRoleString(string memory role, address account) external;
 
     function revokeRole(bytes32, address) external;
 
@@ -195,6 +207,13 @@ interface IRCTreasury {
         uint256 _newBid,
         uint256 _timeOfNewBid
     ) external view returns (uint256);
+
+    function checkRole(string memory role, address account)
+        external
+        view
+        returns (bool);
+
+    function uberOwnerCheckTime() external view returns (uint256);
 
     function bridgeAddress() external view returns (address);
 
@@ -247,6 +266,8 @@ interface IRCTreasury {
     function setLeaderboardAddress(address _newAddress) external;
 
     function setFactoryAddress(address _newFactory) external;
+
+    function uberOwnerTest() external;
 
     function deposit(uint256 _amount, address _user) external returns (bool);
 
@@ -335,8 +356,6 @@ interface IRCMarket {
     function sponsor(address _sponsor, uint256 _amount) external;
 
     function sponsor(uint256 _amount) external;
-
-    function circuitBreaker() external;
 
     // payouts
     function withdraw() external;
@@ -580,9 +599,9 @@ interface IRCOrderbook {
 interface IRCLeaderboard {
     function treasury() external view returns (IRCTreasury);
 
-    function market() external view returns (IRCMarket);
-
     function NFTsToAward(address _market) external view returns (uint256);
+
+    function setTreasuryAddress(address _newTreasury) external;
 
     function updateLeaderboard(
         address _user,

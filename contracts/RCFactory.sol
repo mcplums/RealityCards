@@ -248,6 +248,7 @@ contract RCFactory is NativeMetaTransaction, IRCFactory {
     )
         external
         view
+        override
         returns (
             address[] memory,
             string[] memory,
